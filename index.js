@@ -8,8 +8,8 @@ const PHP = 0;
 const HTML = 1;
 
 //var test_file = fs.readFileSync('baseloop.php', { encoding: 'utf8' });
-var test_file = fs.readFileSync('tiny.php', { encoding: 'utf8' });
-var test_file2 = fs.readFileSync('tiny2.php', { encoding: 'utf8' });
+var test_file = fs.readFileSync('tests/tiny.php', { encoding: 'utf8' });
+var test_file2 = fs.readFileSync('tests/tiny2.php', { encoding: 'utf8' });
 
 var tokens1 = lex(test_file);
 print_tokens(tokens1);
@@ -40,45 +40,70 @@ function diff_tokens(t1, t2) {
 	var side = 0;
 	while (i1 < t1.length && i2 < t2.length) {
 		if (obj_equals(t1[i1], t2[i2])) {
-			console.log("  equal: " + i1 + " to " + i2)
+			//console.log('  equal: ' + i1 + ' to ' + i2)
 			i1 += 1;
 			i2 += 1;
 			continue;
 		}
 
 		// find next node in t1 that appears in t2 - O(N2)
-		find_node_match:
-		for (var t1_token = i1; t1_token < t1.length; ++t1_token) {
-			//console.log("  looking for match for " + t1_token);
-			for (var t2_token = i2 + 1; t2_token < t2.length; ++t2_token) {
-				//console.log("  comparing " + t1_token + " to " + t2_token);
-				if (obj_equals(t1[t1_token], t2[t2_token])) {
-					found_match = true;
-					console.log('  found next match: ' + t1_token + ' to ' + t2_token);
-					console.log('insert ' + i2 + ' to ' + (t2_token - 1) + ' from right side');
-					if (i1 < t1_token)
-						console.log('delete ' + i1 + ' to ' + (t1_token - 1) + ' from left side');
-					i1 = t1_token;
-					i2 = t2_token;
-					break find_node_match;
-				}
+		var found_match = false;
+		//console.log('  looking for match for ' + i1);
+		for (var t2_token = i2 + 1; t2_token < t2.length; ++t2_token) {
+			//console.log('  comparing ' + i1 + ' to ' + t2_token);
+			if (obj_equals(t1[i1], t2[t2_token])) {
+				found_match = true;
+				//console.log('  found next match: ' + i1 + ' to ' + t2_token);
+				console.log('insert ' + i2 + ' to ' + (t2_token - 1) + ' from right side');
+				i1 += 1;
+				i2 = t2_token + 1;
+				break;
 			}
 		}
+		if (found_match)
+			continue;
 
-		if (i1 > t1.length && i2 > t2.length) {
-			if (i2 != t2_token)
-				console.log('insert ' + i2 + ' to ' + t2.length + ' from right side');
-			if (i1 != t1_token)
-				console.log('delete ' + i1 + ' to ' + t1.length + ' from left side');
-			console.log("unable to find matching nodes after " + i1 + " and " + i2);
+		// didn't find match for i1, look for match for i2
+		found_match = false;
+		//console.log('  looking for match for right side ' + i2);
+		for (var t1_token = i1 + 1; t1_token < t1.length; ++t1_token) {
+			//console.log('  comparing ' + t1_token + ' to ' + i2);
+			if (obj_equals(t1[t1_token], t2[i2])) {
+				found_match = true;
+				//console.log('  found next match: ' + t1_token + ' to ' + i2);
+				console.log('delete ' + i1 + ' to ' + (t1_token - 1) + ' from left side');
+				i1 = t1_token + 1;
+				i2 += 1;
+				break;
+			}
+		}
+		if (found_match)
+			continue;
+
+		// no match for left side or right side
+		console.log('insert ' + i2 + ' from right side');
+		console.log('delete ' + i1 + ' from left side');
+		i1 += 1;
+		i2 += 1;
+		continue;
+
+		// if left side is done, insert remaining lines from right side
+		if (i1 == t1.length && i2 < t2.length) {
+			console.log('insert ' + i2 + ' to ' + t2.length + ' from right side');
+			break;
+		}
+
+		// if right side is done, delete remaining lines from left side
+		if (i2 > t2.length && i1 < t1.length) {
+			console.log('delete ' + i1 + ' to ' + t1.length + ' from left side');
+			break;
 		}
 	}
 }
 
 function print_tokens(tokens) {
-	for (var t in tokens) {
+	for (var t in tokens)
 		console.log(t + ": " + tokenToString(tokens[t]));
-	}
 }
 
 function lex(php_file) {
